@@ -471,21 +471,16 @@ async function main() {
     console.log(`✅ Fix attempt ${attempt} done: ${mermaidCode.length} chars\n`);
   }
 
-  // Output
-  const outputPath = join(
-    "C:/Users/vivihung/AppData/Roaming/Frank/workspaces/gitdiagram-1772838316676-mk6d7t",
-    "diagram-output.html",
-  );
+  // Output — write to current working directory
+  const outputDir = process.cwd();
+  const outputPath = join(outputDir, "diagram-output.html");
   const html = generateHTML(mermaidCode, explanation);
   await writeFile(outputPath, html, "utf-8");
   console.log(`\n📊 Diagram saved to: ${outputPath}`);
   console.log(`Open in browser: file:///${outputPath.replace(/\\/g, "/")}`);
 
   // Also save raw mermaid
-  const mermaidPath = join(
-    "C:/Users/vivihung/AppData/Roaming/Frank/workspaces/gitdiagram-1772838316676-mk6d7t",
-    "diagram-output.mmd",
-  );
+  const mermaidPath = join(outputDir, "diagram-output.mmd");
   await writeFile(mermaidPath, mermaidCode, "utf-8");
   console.log(`📝 Raw Mermaid code saved to: ${mermaidPath}\n`);
 }
