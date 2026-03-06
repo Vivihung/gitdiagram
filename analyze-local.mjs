@@ -266,36 +266,62 @@ function stripFences(text) {
   return text.replace(/```mermaid/g, "").replace(/```/g, "").trim();
 }
 
+// Cache Mermaid and DOMPurify initialization at module scope to avoid
+// repeated initialization overhead and potential side effects.
+let cachedMermaid = null;
+let mermaidInitialized = false;
+let domPurifyPatched = false;
+
 async function validateMermaid(code) {
-  const { createRequire } = await import("node:module");
-  const require = createRequire(import.meta.url);
-
-  // Patch DOMPurify for server-side usage
-  const DOMPurify = (await import("dompurify")).default;
-  if (typeof DOMPurify === "function" && typeof DOMPurify.sanitize !== "function") {
-    const { JSDOM } = require("jsdom");
-    const domWindow = new JSDOM("<!doctype html><html><body></body></html>").window;
-    const instance = DOMPurify(domWindow);
-    Object.assign(DOMPurify, instance);
-  }
-
-  const mermaid = (await import("mermaid")).default;
-  mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
-
-  // Strip `direction` directives — valid in browser Mermaid but rejected by
-  // the server-side parser bundled with the mermaid npm package.
-  const codeForValidation = code.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
-
   try {
-    await mermaid.parse(codeForValidation);
-    return { valid: true };
+    const { createRequire } = await import("node:module");
+    const require = createRequire(import.meta.url);
+
+    // Patch DOMPurify for server-side usage (once)
+    if (!domPurifyPatched) {
+      const DOMPurify = (await import("dompurify")).default;
+      if (typeof DOMPurify === "function" && typeof DOMPurify.sanitize !== "function") {
+        const { JSDOM } = require("jsdom");
+        const domWindow = new JSDOM("<!doctype html><html><body></body></html>").window;
+        const instance = DOMPurify(domWindow);
+        Object.assign(DOMPurify, instance);
+      }
+      domPurifyPatched = true;
+    }
+
+    // Initialize Mermaid only once and reuse the instance
+    if (!cachedMermaid) {
+      const mermaidModule = await import("mermaid");
+      cachedMermaid = mermaidModule.default;
+    }
+    if (!mermaidInitialized) {
+      cachedMermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+      mermaidInitialized = true;
+    }
+
+    // Strip `direction` directives — valid in browser Mermaid but rejected by
+    // the server-side parser bundled with the mermaid npm package.
+    const codeForValidation = code.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
+
+    try {
+      await cachedMermaid.parse(codeForValidation);
+      return { valid: true };
+    } catch (error) {
+      return {
+        valid: false,
+        message: error?.message || "Mermaid syntax is invalid and could not be parsed.",
+        line: error?.hash?.line,
+        token: error?.hash?.token,
+        expected: error?.hash?.expected,
+      };
+    }
   } catch (error) {
+    // Best-effort: if dompurify/jsdom/mermaid can't load, don't crash the run
     return {
       valid: false,
-      message: error?.message || "Mermaid syntax is invalid and could not be parsed.",
-      line: error?.hash?.line,
-      token: error?.hash?.token,
-      expected: error?.hash?.expected,
+      message: error?.message
+        ? `Mermaid validation environment error: ${error.message}`
+        : "Mermaid validation failed due to an unexpected environment error.",
     };
   }
 }
@@ -468,6 +494,8 @@ async function main() {
       }),
     );
     mermaidCode = stripFences(fixResponse);
+    // Re-strip direction directives in case the LLM reintroduced them
+    mermaidCode = mermaidCode.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
     console.log(`✅ Fix attempt ${attempt} done: ${mermaidCode.length} chars\n`);
   }
 
