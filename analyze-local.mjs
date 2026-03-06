@@ -473,6 +473,13 @@ async function main() {
   for (let attempt = 1; attempt <= MAX_FIX_ATTEMPTS; attempt++) {
     console.log(`Validating Mermaid syntax (attempt ${attempt}/${MAX_FIX_ATTEMPTS})...`);
     const result = await validateMermaid(mermaidCode);
+
+    // Short-circuit if validation itself failed (missing deps, etc.)
+    if (!result.valid && result.message?.startsWith("Mermaid validation environment error:")) {
+      console.warn(`⚠️  Mermaid validation unavailable. Skipping auto-fix.\n${result.message}\n`);
+      break;
+    }
+
     if (result.valid) {
       console.log(`✅ Mermaid syntax is valid\n`);
       break;
