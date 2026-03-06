@@ -25,6 +25,8 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache"
   },
   "dependencies": {
+    "@azure/identity": "^4.13.0",
+    "@azure/openai": "^2.0.0",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-progress": "^1.1.8",

@@ -1,19 +1,42 @@
+import { DefaultAzureCredential } from "@azure/identity";
 import OpenAI from "openai";
 
 export type ReasoningEffort = "low" | "medium" | "high";
 
-function resolveApiKey(overrideApiKey?: string): string {
-  const apiKey = overrideApiKey?.trim() || process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
+const credential = new DefaultAzureCredential();
+let cachedToken: { token: string; expiresOnTimestamp: number } | null = null;
+
+async function getToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresOnTimestamp > Date.now() + 60_000) {
+    return cachedToken.token;
+  }
+  const result = await credential.getToken(
+    "https://cognitiveservices.azure.com/.default",
+  );
+  cachedToken = result;
+  return result.token;
+}
+
+async function getClient(): Promise<OpenAI> {
+  const baseURL =
+    process.env.AZURE_OPENAI_BASE_URL ??
+    `${process.env.AZURE_OPENAI_ENDPOINT}/openai/v1`;
+
+  if (!baseURL || baseURL === "undefined/openai/v1") {
     throw new Error(
-      "Missing OpenAI API key. Set OPENAI_API_KEY or provide api_key in request.",
+      "Missing AZURE_OPENAI_BASE_URL or AZURE_OPENAI_ENDPOINT env var.",
     );
   }
-  return apiKey;
+
+  const token = await getToken();
+  return new OpenAI({ apiKey: token, baseURL });
+}
+
+function getModel(): string {
+  return process.env.AZURE_OPENAI_DEPLOYMENT ?? "gpt-5.4";
 }
 
 export function estimateTokens(text: string): number {
-  // Rough heuristic used for fast gating/cost estimates in serverless.
   return Math.ceil(text.length / 4);
 }
 
@@ -27,37 +50,24 @@ interface StreamCompletionParams {
 }
 
 export async function* streamCompletion({
-  model,
   systemPrompt,
   userPrompt,
-  apiKey,
-  reasoningEffort,
-  maxOutputTokens,
 }: StreamCompletionParams): AsyncGenerator<string, void, void> {
-  const client = new OpenAI({ apiKey: resolveApiKey(apiKey) });
+  const client = await getClient();
 
-  const stream = await client.responses.create({
-    model,
+  const stream = await client.chat.completions.create({
+    model: getModel(),
     stream: true,
-    input: [
+    messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
-    ...(maxOutputTokens ? { max_output_tokens: maxOutputTokens } : {}),
   });
 
-  for await (const event of stream) {
-    if (event.type === "response.output_text.delta") {
-      if (event.delta) {
-        yield event.delta;
-      }
-      continue;
-    }
-
-    if (event.type === "error") {
-      const message = event.message ?? "OpenAI stream failed.";
-      throw new Error(message);
+  for await (const chunk of stream) {
+    const delta = chunk.choices?.[0]?.delta?.content;
+    if (delta) {
+      yield delta;
     }
   }
 }
@@ -71,22 +81,10 @@ interface CountInputTokensParams {
 }
 
 export async function countInputTokens({
-  model,
   systemPrompt,
   userPrompt,
-  apiKey,
-  reasoningEffort,
 }: CountInputTokensParams): Promise<number> {
-  const client = new OpenAI({ apiKey: resolveApiKey(apiKey) });
-
-  const response = await client.responses.inputTokens.count({
-    model,
-    input: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
-  });
-
-  return response.input_tokens;
+  // Azure OpenAI doesn't have a token counting endpoint,
+  // fall back to estimation
+  return estimateTokens(systemPrompt + userPrompt);
 }

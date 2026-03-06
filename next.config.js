@@ -7,6 +7,9 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 const config = {
   reactStrictMode: false,
+  turbopack: {
+    root: import.meta.dirname,
+  },
   async rewrites() {
     return [
       {
