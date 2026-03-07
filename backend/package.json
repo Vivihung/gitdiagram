@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "dompurify": "3.3.1",
+    "dompurify": "3.3.2",
     "jsdom": "28.1.0",
     "mermaid": "11.12.3"
   }
