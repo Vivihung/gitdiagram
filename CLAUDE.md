@@ -15,8 +15,11 @@ pnpm dev              # Start Next.js dev server (Turbo)
 pnpm build            # Production build
 pnpm lint             # ESLint
 pnpm check            # Type-check + lint
+pnpm typecheck        # TypeScript only (no lint)
 pnpm test             # Vitest (frontend unit tests)
+pnpm test:watch       # Vitest in watch mode
 pnpm format:write     # Prettier formatting
+pnpm format:check     # Prettier check (no write)
 ```
 
 ### Backend (Python 3.12, uv)
@@ -27,6 +30,8 @@ uv run pytest -q               # Run all backend tests
 uv run pytest tests/path/test_file.py::test_name  # Run single test
 uv run python -m compileall app  # Compile check
 ```
+
+`pnpm test:backend` runs backend tests from the repo root without `cd backend`.
 
 ### Database
 ```bash
@@ -60,6 +65,8 @@ NEXT_PUBLIC_API_DEV_URL=http://localhost:8000
 The app supports two generation backends controlled by `NEXT_PUBLIC_USE_LEGACY_BACKEND`:
 - **FastAPI** (`backend/`) on Railway — primary production path
 - **Next.js Route Handlers** (`src/app/api/generate/`) — legacy fallback
+
+Despite the name, `NEXT_PUBLIC_USE_LEGACY_BACKEND=true` points to the **primary** FastAPI backend in production (the name is historical).
 
 Both expose the same SSE streaming API. The frontend (`src/features/diagram/api.ts`) routes to one or the other transparently.
 

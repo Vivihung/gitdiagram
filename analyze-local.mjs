@@ -185,7 +185,29 @@ EXTREMELY Important notes on syntax!!! (PAY ATTENTION TO THIS):
 - In Mermaid.js syntax, we cannot include special characters for nodes without being inside quotes! For example: \`EX[/api/process (Backend)]:::api\` and \`API -->|calls Process()| Backend\` are two examples of syntax errors. They should be \`EX["/api/process (Backend)"]:::api\` and \`API -->|"calls Process()"| Backend\` respectively. Notice the quotes. This is extremely important. Make sure to include quotes for any string that contains special characters.
 - In Mermaid.js syntax, you cannot apply a class style directly within a subgraph declaration. For example: \`subgraph "Frontend Layer":::frontend\` is a syntax error. However, you can apply them to nodes within the subgraph. For example: \`Example["Example Node"]:::frontend\` is valid, and \`class Example1,Example2 frontend\` is valid.
 - In Mermaid.js syntax, there cannot be spaces in the relationship label names. For example: \`A -->| "example relationship" | B\` is a syntax error. It should be \`A -->|"example relationship"| B\`
-- In Mermaid.js syntax, you cannot give subgraphs an alias like nodes. For example: \`subgraph A "Layer A"\` is a syntax error. It should be \`subgraph "Layer A"\`
+- In Mermaid.js syntax, you cannot give subgraphs an alias like nodes. For example: \`subgraph A "Layer A"\` is a syntax error. It should be \`subgraph "Layer A"\`. Similarly, \`subgraph APP["My App"]\` is a syntax error. It should be \`subgraph "My App"\`.
+- In Mermaid.js syntax, angle brackets < and > inside node labels cause parse errors. Avoid them. For example: \`A["Arc<Mutex<T>>"]\` is a syntax error. Use \`A["Arc Mutex T"]\` or similar instead.
+`;
+
+const SYSTEM_FIX_MERMAID_PROMPT = `
+You are a Mermaid syntax repair specialist.
+
+You will receive:
+- <mermaid_code>...</mermaid_code>
+- <parser_error>...</parser_error>
+- <explanation>...</explanation>
+- <component_mapping>...</component_mapping>
+
+Task:
+- Fix Mermaid syntax errors while preserving the original diagram meaning.
+- Keep all click events that map to repository paths.
+- Keep diagram mostly vertical.
+- Return Mermaid code only.
+
+Rules:
+- No markdown code fences.
+- No extra commentary.
+- Ensure final output is syntactically valid Mermaid.
 `;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -234,14 +256,87 @@ function toTagged(values) {
 }
 
 function extractComponentMapping(response) {
-  const s = response.indexOf("<component_mapping>");
-  const e = response.indexOf("</component_mapping>");
+  const openTag = "<component_mapping>";
+  const closeTag = "</component_mapping>";
+  const s = response.indexOf(openTag);
+  const e = response.indexOf(closeTag);
   if (s === -1 || e === -1) return response;
-  return response.slice(s, e);
+  return response.slice(s + openTag.length, e);
 }
 
 function stripFences(text) {
   return text.replace(/```mermaid/g, "").replace(/```/g, "").trim();
+}
+
+// Cache Mermaid and DOMPurify initialization at module scope to avoid
+// repeated initialization overhead and potential side effects.
+let cachedMermaid = null;
+let mermaidInitialized = false;
+let domPurifyPatched = false;
+
+async function validateMermaid(code) {
+  try {
+    const { createRequire } = await import("node:module");
+    const require = createRequire(import.meta.url);
+
+    // Patch DOMPurify for server-side usage (once)
+    if (!domPurifyPatched) {
+      const DOMPurify = (await import("dompurify")).default;
+      if (typeof DOMPurify === "function" && typeof DOMPurify.sanitize !== "function") {
+        const { JSDOM } = require("jsdom");
+        const domWindow = new JSDOM("<!doctype html><html><body></body></html>").window;
+        const instance = DOMPurify(domWindow);
+        Object.assign(DOMPurify, instance);
+      }
+      domPurifyPatched = true;
+    }
+
+    // Initialize Mermaid only once and reuse the instance
+    if (!cachedMermaid) {
+      const mermaidModule = await import("mermaid");
+      cachedMermaid = mermaidModule.default;
+    }
+    if (!mermaidInitialized) {
+      cachedMermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+      mermaidInitialized = true;
+    }
+
+    // Strip `direction` directives — valid in browser Mermaid but rejected by
+    // the server-side parser bundled with the mermaid npm package.
+    const codeForValidation = code.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
+
+    try {
+      await cachedMermaid.parse(codeForValidation);
+      return { valid: true };
+    } catch (error) {
+      return {
+        valid: false,
+        message: error?.message || "Mermaid syntax is invalid and could not be parsed.",
+        line: error?.hash?.line,
+        token: error?.hash?.token,
+        expected: error?.hash?.expected,
+      };
+    }
+  } catch (error) {
+    // Best-effort: if dompurify/jsdom/mermaid can't load, don't crash the run
+    return {
+      valid: false,
+      message: error?.message
+        ? `Mermaid validation environment error: ${error.message}`
+        : "Mermaid validation failed due to an unexpected environment error.",
+    };
+  }
+}
+
+function formatValidationFeedback(result) {
+  if (result.valid) return "No syntax errors found.";
+  const details = [
+    `message: ${result.message ?? "unknown parse error"}`,
+    typeof result.line === "number" ? `line: ${result.line}` : undefined,
+    result.token ? `token: ${result.token}` : undefined,
+    result.expected?.length ? `expected: ${result.expected.join(", ")}` : undefined,
+  ].filter(Boolean);
+  return details.join("\n");
 }
 
 // ── Azure OpenAI client (OpenAI-compatible endpoint) ────────────────────────
@@ -364,30 +459,77 @@ async function main() {
   const componentMapping = extractComponentMapping(mappingResponse);
   console.log(`✅ Component mapping done\n`);
 
-  // Step 3: Mermaid diagram
+  // Step 3: Mermaid diagram + validation with auto-fix retry
   console.log("Stage 3/3: Generating Mermaid diagram...");
   const mermaidRaw = await streamChat(
     SYSTEM_THIRD_PROMPT,
     toTagged({ explanation, component_mapping: componentMapping }),
   );
-  const mermaidCode = stripFences(mermaidRaw);
+  let mermaidCode = stripFences(mermaidRaw);
+  // Strip `direction` directives — many Mermaid tools/versions reject them,
+  // and `flowchart TD` at the top already sets the global direction.
+  mermaidCode = mermaidCode.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
   console.log(`✅ Diagram: ${mermaidCode.length} chars\n`);
 
-  // Output
-  const outputPath = join(
-    "C:/Users/vivihung/AppData/Roaming/Frank/workspaces/gitdiagram-1772830809889-5he0ty",
-    "diagram-output.html",
-  );
+  // Initial validation before attempting any auto-fix
+  const MAX_FIX_ATTEMPTS = 3;
+  console.log("Validating Mermaid syntax...");
+  let result = await validateMermaid(mermaidCode);
+
+  if (!result.valid && result.message?.startsWith("Mermaid validation environment error:")) {
+    console.warn(`⚠️  Mermaid validation unavailable. Skipping auto-fix.\n${result.message}\n`);
+  } else if (result.valid) {
+    console.log(`✅ Mermaid syntax is valid\n`);
+  } else {
+    let feedback = formatValidationFeedback(result);
+    console.log(`⚠️  Syntax error detected:\n${feedback}\n`);
+
+    // Attempt up to MAX_FIX_ATTEMPTS automatic repairs, re-validating after each
+    for (let attempt = 1; attempt <= MAX_FIX_ATTEMPTS; attempt++) {
+      console.log(`Attempting auto-fix (${attempt}/${MAX_FIX_ATTEMPTS})...`);
+      const fixResponse = await streamChat(
+        SYSTEM_FIX_MERMAID_PROMPT,
+        toTagged({
+          mermaid_code: mermaidCode,
+          parser_error: feedback,
+          explanation,
+          component_mapping: componentMapping,
+        }),
+      );
+      mermaidCode = stripFences(fixResponse);
+      // Re-strip direction directives in case the LLM reintroduced them
+      mermaidCode = mermaidCode.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
+      console.log(`✅ Fix attempt ${attempt} done: ${mermaidCode.length} chars\n`);
+
+      console.log(`Re-validating after fix attempt ${attempt}...`);
+      result = await validateMermaid(mermaidCode);
+
+      if (!result.valid && result.message?.startsWith("Mermaid validation environment error:")) {
+        console.warn(`⚠️  Mermaid validation unavailable. Stopping auto-fix.\n${result.message}\n`);
+        break;
+      }
+      if (result.valid) {
+        console.log(`✅ Mermaid syntax is valid after ${attempt} auto-fix attempt(s)\n`);
+        break;
+      }
+      feedback = formatValidationFeedback(result);
+      console.log(`⚠️  Syntax error persists after attempt ${attempt}:\n${feedback}\n`);
+      if (attempt === MAX_FIX_ATTEMPTS) {
+        console.log(`❌ Failed to produce valid Mermaid after ${MAX_FIX_ATTEMPTS} auto-fix attempts. Saving anyway.\n`);
+      }
+    }
+  }
+
+  // Output — write to current working directory
+  const outputDir = process.cwd();
+  const outputPath = join(outputDir, "diagram-output.html");
   const html = generateHTML(mermaidCode, explanation);
   await writeFile(outputPath, html, "utf-8");
   console.log(`\n📊 Diagram saved to: ${outputPath}`);
   console.log(`Open in browser: file:///${outputPath.replace(/\\/g, "/")}`);
 
   // Also save raw mermaid
-  const mermaidPath = join(
-    "C:/Users/vivihung/AppData/Roaming/Frank/workspaces/gitdiagram-1772830809889-5he0ty",
-    "diagram-output.mmd",
-  );
+  const mermaidPath = join(outputDir, "diagram-output.mmd");
   await writeFile(mermaidPath, mermaidCode, "utf-8");
   console.log(`📝 Raw Mermaid code saved to: ${mermaidPath}\n`);
 }
