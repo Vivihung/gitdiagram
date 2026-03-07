@@ -256,10 +256,12 @@ function toTagged(values) {
 }
 
 function extractComponentMapping(response) {
-  const s = response.indexOf("<component_mapping>");
-  const e = response.indexOf("</component_mapping>");
+  const openTag = "<component_mapping>";
+  const closeTag = "</component_mapping>";
+  const s = response.indexOf(openTag);
+  const e = response.indexOf(closeTag);
   if (s === -1 || e === -1) return response;
-  return response.slice(s, e);
+  return response.slice(s + openTag.length, e);
 }
 
 function stripFences(text) {
@@ -469,41 +471,53 @@ async function main() {
   mermaidCode = mermaidCode.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
   console.log(`✅ Diagram: ${mermaidCode.length} chars\n`);
 
+  // Initial validation before attempting any auto-fix
   const MAX_FIX_ATTEMPTS = 3;
-  for (let attempt = 1; attempt <= MAX_FIX_ATTEMPTS; attempt++) {
-    console.log(`Validating Mermaid syntax (attempt ${attempt}/${MAX_FIX_ATTEMPTS})...`);
-    const result = await validateMermaid(mermaidCode);
+  console.log("Validating Mermaid syntax...");
+  let result = await validateMermaid(mermaidCode);
 
-    // Short-circuit if validation itself failed (missing deps, etc.)
-    if (!result.valid && result.message?.startsWith("Mermaid validation environment error:")) {
-      console.warn(`⚠️  Mermaid validation unavailable. Skipping auto-fix.\n${result.message}\n`);
-      break;
-    }
-
-    if (result.valid) {
-      console.log(`✅ Mermaid syntax is valid\n`);
-      break;
-    }
-    const feedback = formatValidationFeedback(result);
+  if (!result.valid && result.message?.startsWith("Mermaid validation environment error:")) {
+    console.warn(`⚠️  Mermaid validation unavailable. Skipping auto-fix.\n${result.message}\n`);
+  } else if (result.valid) {
+    console.log(`✅ Mermaid syntax is valid\n`);
+  } else {
+    let feedback = formatValidationFeedback(result);
     console.log(`⚠️  Syntax error detected:\n${feedback}\n`);
-    if (attempt === MAX_FIX_ATTEMPTS) {
-      console.log(`❌ Failed to produce valid Mermaid after ${MAX_FIX_ATTEMPTS} attempts. Saving anyway.\n`);
-      break;
+
+    // Attempt up to MAX_FIX_ATTEMPTS automatic repairs, re-validating after each
+    for (let attempt = 1; attempt <= MAX_FIX_ATTEMPTS; attempt++) {
+      console.log(`Attempting auto-fix (${attempt}/${MAX_FIX_ATTEMPTS})...`);
+      const fixResponse = await streamChat(
+        SYSTEM_FIX_MERMAID_PROMPT,
+        toTagged({
+          mermaid_code: mermaidCode,
+          parser_error: feedback,
+          explanation,
+          component_mapping: componentMapping,
+        }),
+      );
+      mermaidCode = stripFences(fixResponse);
+      // Re-strip direction directives in case the LLM reintroduced them
+      mermaidCode = mermaidCode.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
+      console.log(`✅ Fix attempt ${attempt} done: ${mermaidCode.length} chars\n`);
+
+      console.log(`Re-validating after fix attempt ${attempt}...`);
+      result = await validateMermaid(mermaidCode);
+
+      if (!result.valid && result.message?.startsWith("Mermaid validation environment error:")) {
+        console.warn(`⚠️  Mermaid validation unavailable. Stopping auto-fix.\n${result.message}\n`);
+        break;
+      }
+      if (result.valid) {
+        console.log(`✅ Mermaid syntax is valid after ${attempt} auto-fix attempt(s)\n`);
+        break;
+      }
+      feedback = formatValidationFeedback(result);
+      console.log(`⚠️  Syntax error persists after attempt ${attempt}:\n${feedback}\n`);
+      if (attempt === MAX_FIX_ATTEMPTS) {
+        console.log(`❌ Failed to produce valid Mermaid after ${MAX_FIX_ATTEMPTS} auto-fix attempts. Saving anyway.\n`);
+      }
     }
-    console.log(`Attempting auto-fix (${attempt}/${MAX_FIX_ATTEMPTS})...`);
-    const fixResponse = await streamChat(
-      SYSTEM_FIX_MERMAID_PROMPT,
-      toTagged({
-        mermaid_code: mermaidCode,
-        parser_error: feedback,
-        explanation,
-        component_mapping: componentMapping,
-      }),
-    );
-    mermaidCode = stripFences(fixResponse);
-    // Re-strip direction directives in case the LLM reintroduced them
-    mermaidCode = mermaidCode.replace(/^\s*direction\s+(TB|TD|BT|RL|LR)\s*$/gm, "");
-    console.log(`✅ Fix attempt ${attempt} done: ${mermaidCode.length} chars\n`);
   }
 
   // Output — write to current working directory
