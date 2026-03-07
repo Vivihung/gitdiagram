@@ -13,6 +13,7 @@ export interface MermaidValidationResult {
 const SCRIPT_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "..",
+  "..",
   "backend",
   "scripts",
   "validate_mermaid.mjs",
