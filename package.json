@@ -11,10 +11,12 @@
   },
   "files": [
     "dist/lib",
+    "lib",
     "backend/scripts/validate_mermaid.mjs",
     "backend/node_modules"
   ],
   "scripts": {
+    "prepare": "tsc -p lib/tsconfig.json",
     "build:lib": "tsc -p lib/tsconfig.json",
     "sync:prompts": "pnpm build:lib && node scripts/sync-prompts.mjs",
     "build": "next build",
