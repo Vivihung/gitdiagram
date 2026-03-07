@@ -1,9 +1,21 @@
 {
   "name": "gitdiagram",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/lib/index.js",
+      "types": "./dist/lib/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/lib",
+    "backend/scripts/validate_mermaid.mjs",
+    "backend/node_modules"
+  ],
   "scripts": {
+    "build:lib": "tsc -p lib/tsconfig.json",
     "build": "next build",
     "check": "pnpm lint && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
