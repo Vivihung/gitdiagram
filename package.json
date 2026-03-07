@@ -16,7 +16,7 @@
     "backend/node_modules"
   ],
   "scripts": {
-    "prepare": "tsc -p lib/tsconfig.json",
+    "prepare": "npm run build:lib",
     "build:lib": "tsc -p lib/tsconfig.json",
     "sync:prompts": "pnpm build:lib && node scripts/sync-prompts.mjs",
     "build": "next build",
