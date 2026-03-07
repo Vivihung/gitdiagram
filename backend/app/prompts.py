@@ -1,17 +1,5 @@
-# This is our processing. This is where GitDiagram makes the magic happen
-# There is a lot of DETAIL we need to extract from the repository to produce detailed and accurate diagrams
-# I will immediately put out there that I'm trying to reduce costs. Theoretically, I could, for like 5x better accuracy, include most file content as well which would make for perfect diagrams, but thats too many tokens for my wallet, and would probably greatly increase generation time. (maybe a paid feature?)
-
-# THE PROCESS:
-
-# imagine it like this:
-# def prompt1(file_tree, readme) -> explanation of diagram
-# def prompt2(explanation, file_tree) -> maps relevant directories and files to parts of diagram for interactivity
-# def prompt3(explanation, map) -> Mermaid.js code
-
-# Note: Originally prompt1 and prompt2 were combined - but I tested it, and turns out mapping relevant dirs and files in one prompt along with generating detailed and accurate diagrams was difficult for Claude 3.5 Sonnet. It lost detail in the explanation and dedicated more "effort" to the mappings, so this is now its own prompt.
-
-# This is my first take at prompt engineering so if you have any ideas on optimizations please make an issue on the GitHub!
+# AUTO-GENERATED from lib/prompts.ts — do not edit manually.
+# Run: pnpm sync:prompts
 
 SYSTEM_FIRST_PROMPT = """
 You are tasked with explaining to a principal software engineer how to draw the best and most accurate system design diagram / architecture of a given project. This explanation should be tailored to the specific project's purpose and structure. To accomplish this, you will be provided with two key pieces of information:
@@ -57,13 +45,6 @@ Analyze these components carefully, as they will provide crucial information abo
 Present your explanation and instructions within <explanation> tags, ensuring that you tailor your advice to the specific project based on the provided file tree and README content.
 """
 
-# - A legend explaining any symbols or abbreviations used
-# ^ removed since it was making the diagrams very long
-
-# just adding some clear separation between the prompts
-# ************************************************************
-# ************************************************************
-
 SYSTEM_SECOND_PROMPT = """
 You are tasked with mapping key components of a system design to their corresponding files and directories in a project's file structure. You will be provided with a detailed explanation of the system design/architecture and a file tree of the project.
 
@@ -87,22 +68,8 @@ Now, provide your final answer in the following format:
 [Continue for all identified components]
 </component_mapping>
 
-Remember to be as specific as possible in your mappings, only use what is given to you from the file tree, and to strictly follow the components mentioned in the explanation. 
+Remember to be as specific as possible in your mappings, only use what is given to you from the file tree, and to strictly follow the components mentioned in the explanation.
 """
-
-# ❌ BELOW IS A REMOVED SECTION FROM THE ABOVE PROMPT USED FOR CLAUDE 3.5 SONNET
-# Before providing your final answer, use the <scratchpad> to think through your process:
-# 1. List the key components identified in the system design.
-# 2. For each component, brainstorm potential corresponding directories or files.
-# 3. Verify your mappings by double-checking the file tree.
-
-# <scratchpad>
-# [Your thought process here]
-# </scratchpad>
-
-# just adding some clear separation between the prompts
-# ************************************************************
-# ************************************************************
 
 SYSTEM_THIRD_PROMPT = """
 You are a principal software engineer tasked with creating a system design diagram using Mermaid.js based on a detailed explanation. Your goal is to accurately represent the architecture and design of the project as described in the explanation.
@@ -152,12 +119,12 @@ Do not include an init declaration such as `%%{init: {'key':'etc'}}%%`. This is 
 Your response must strictly be just the Mermaid.js code, without any additional text or explanations.
 No code fence or markdown ticks needed, simply return the Mermaid.js code.
 
-Ensure that your diagram adheres strictly to the given explanation, without adding or omitting any significant components or relationships. 
+Ensure that your diagram adheres strictly to the given explanation, without adding or omitting any significant components or relationships.
 
 For general direction, the provided example below is how you should structure your code:
 
 ```mermaid
-flowchart TD 
+flowchart TD
     %% or graph TD, your choice
 
     %% Global entities
@@ -190,13 +157,9 @@ EXTREMELY Important notes on syntax!!! (PAY ATTENTION TO THIS):
 - Make sure to add colour to the diagram!!! This is extremely critical.
 - In Mermaid.js syntax, we cannot include special characters for nodes without being inside quotes! For example: `EX[/api/process (Backend)]:::api` and `API -->|calls Process()| Backend` are two examples of syntax errors. They should be `EX["/api/process (Backend)"]:::api` and `API -->|"calls Process()"| Backend` respectively. Notice the quotes. This is extremely important. Make sure to include quotes for any string that contains special characters.
 - In Mermaid.js syntax, you cannot apply a class style directly within a subgraph declaration. For example: `subgraph "Frontend Layer":::frontend` is a syntax error. However, you can apply them to nodes within the subgraph. For example: `Example["Example Node"]:::frontend` is valid, and `class Example1,Example2 frontend` is valid.
-- In Mermaid.js syntax, there cannot be spaces in the relationship label names. For example: `A -->| "example relationship" | B` is a syntax error. It should be `A -->|"example relationship"| B` 
-- In Mermaid.js syntax, you cannot give subgraphs an alias like nodes. For example: `subgraph A "Layer A"` is a syntax error. It should be `subgraph "Layer A"` 
+- In Mermaid.js syntax, there cannot be spaces in the relationship label names. For example: `A -->| "example relationship" | B` is a syntax error. It should be `A -->|"example relationship"| B`
+- In Mermaid.js syntax, you cannot give subgraphs an alias like nodes. For example: `subgraph A "Layer A"` is a syntax error. It should be `subgraph "Layer A"`
 """
-# ^^^ note: ive generated a few diagrams now and claude still writes incorrect mermaid code sometimes. in the future, refer to those generated diagrams and add important instructions to the prompt above to avoid those mistakes. examples are best.
-
-# e. A legend is included
-# ^ removed since it was making the diagrams very long
 
 SYSTEM_FIX_MERMAID_PROMPT = """
 You are a Mermaid syntax repair specialist.
