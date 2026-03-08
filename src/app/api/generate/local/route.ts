@@ -30,14 +30,12 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function POST(request: Request) {
-  const body = (await request.json()) as { local_path?: string };
-  const localPath =
-    body.local_path ?? process.env.LOCAL_ANALYSIS_PATH;
+export async function POST(_request: Request) {
+  const localPath = process.env.LOCAL_ANALYSIS_PATH;
 
   if (!localPath) {
     return new Response(
-      JSON.stringify({ ok: false, error: "No local_path provided." }),
+      JSON.stringify({ ok: false, error: "LOCAL_ANALYSIS_PATH is not configured." }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }

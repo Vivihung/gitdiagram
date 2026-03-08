@@ -117,7 +117,8 @@ async def get_generation_cost(request: Request):
                     "ok": False,
                     "error": error,
                     "error_code": "VALIDATION_ERROR",
-                }
+                },
+                status_code=400,
             )
 
         github_data = _get_github_data(parsed.username, parsed.repo, parsed.github_pat)
@@ -167,9 +168,10 @@ async def get_generation_cost(request: Request):
         return JSONResponse(
             {
                 "ok": False,
-                "error": str(exc) if isinstance(exc, Exception) else "Failed to estimate generation cost.",
+                "error": "Failed to estimate generation cost.",
                 "error_code": "COST_ESTIMATION_FAILED",
-            }
+            },
+            status_code=500,
         )
 
 
@@ -440,7 +442,7 @@ async def generate_stream(request: Request):
             yield send(
                 {
                     "status": "error",
-                    "error": str(exc) if isinstance(exc, Exception) else "Streaming generation failed.",
+                    "error": "Streaming generation failed.",
                     "error_code": "STREAM_FAILED",
                 }
             )

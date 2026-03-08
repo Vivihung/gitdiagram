@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
 import { getStarCount } from "~/app/_actions/github";
+import { setSecret } from "~/lib/secretStore";
 import { PrivateReposDialog } from "./private-repos-dialog";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { ThemeToggle } from "./theme-toggle";
@@ -27,13 +28,12 @@ export function Header() {
   };
 
   const handlePrivateReposSubmit = (pat: string) => {
-    // Store the PAT in localStorage
-    localStorage.setItem("github_pat", pat);
+    setSecret("github_pat", pat);
     setIsPrivateReposDialogOpen(false);
   };
 
   const handleApiKeySubmit = (apiKey: string) => {
-    localStorage.setItem("openai_key", apiKey);
+    setSecret("openai_key", apiKey);
     setIsApiKeyDialogOpen(false);
   };
 

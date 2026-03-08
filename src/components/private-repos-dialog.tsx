@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getSecret, removeSecret } from "~/lib/secretStore";
 
 interface PrivateReposDialogProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ export function PrivateReposDialog({
   const [pat, setPat] = useState<string>("");
 
   useEffect(() => {
-    const storedPat = localStorage.getItem("github_pat");
+    const storedPat = getSecret("github_pat");
     if (storedPat) {
       setPat(storedPat);
     }
@@ -33,7 +34,7 @@ export function PrivateReposDialog({
   };
 
   const handleClear = () => {
-    localStorage.removeItem("github_pat");
+    removeSecret("github_pat");
     setPat("");
   };
 
@@ -51,8 +52,8 @@ export function PrivateReposDialog({
         >
           <div className="text-sm">
             To enable private repositories, you&apos;ll need to provide a GitHub
-            Personal Access Token with repo scope. The token will be stored
-            locally in your browser. Find out how{" "}
+            Personal Access Token with repo scope. The token is held in memory
+            only for this session and is never written to disk. Find out how{" "}
             <Link
               href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
               className="neo-link"

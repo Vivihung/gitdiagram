@@ -59,7 +59,7 @@ def test_generate_cost_error(monkeypatch):
         json={"username": "acme", "repo": "missing"},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 500
     data = response.json()
     assert data["ok"] is False
     assert data["error_code"] == "COST_ESTIMATION_FAILED"
