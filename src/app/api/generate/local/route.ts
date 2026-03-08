@@ -30,7 +30,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   const localPath = process.env.LOCAL_ANALYSIS_PATH;
 
   if (!localPath) {
