@@ -1,10 +1,11 @@
 import { readdir, readFile, realpath } from "fs/promises";
-import { join, relative, resolve, sep } from "path";
+import { isAbsolute, join, relative, resolve, sep } from "path";
 import type { GithubData } from "./github";
 
 function isWithin(child: string, parent: string): boolean {
   const rel = relative(parent, child);
-  return !rel.startsWith("..") && !resolve(rel).startsWith(sep);
+  if (rel === "") return true;
+  return !isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep);
 }
 
 const EXCLUDED_PATTERNS = [
@@ -78,7 +79,9 @@ async function findReadme(dir: string): Promise<string> {
     try {
       const candidatePath = resolve(dir, name);
       if (!isWithin(candidatePath, dir)) continue;
-      const content = await readFile(candidatePath, "utf-8");
+      const realCandidatePath = await realpath(candidatePath);
+      if (!isWithin(realCandidatePath, dir)) continue;
+      const content = await readFile(realCandidatePath, "utf-8");
       return content;
     } catch {
       // try next
