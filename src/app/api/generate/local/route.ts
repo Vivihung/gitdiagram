@@ -4,7 +4,7 @@ import {
   stripMermaidCodeFences,
   toTaggedMessage,
 } from "~/server/generate/format";
-import { getLocalData, validateLocalPath } from "~/server/generate/local";
+import { getLocalData } from "~/server/generate/local";
 import {
   estimateTokens,
   streamCompletion,
@@ -31,24 +31,11 @@ function sleep(ms: number) {
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { local_path?: string };
-  const allowedBase = process.env.LOCAL_ANALYSIS_PATH;
+  const localPath = process.env.LOCAL_ANALYSIS_PATH;
 
-  if (!allowedBase) {
+  if (!localPath) {
     return new Response(
       JSON.stringify({ ok: false, error: "LOCAL_ANALYSIS_PATH is not configured." }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  let localPath: string;
-  try {
-    localPath = body.local_path
-      ? validateLocalPath(body.local_path, allowedBase)
-      : allowedBase;
-  } catch {
-    return new Response(
-      JSON.stringify({ ok: false, error: "Invalid local_path." }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
