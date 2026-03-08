@@ -5,6 +5,7 @@ import type {
   DiagramStreamMessage,
   DiagramStreamState,
 } from "~/features/diagram/types";
+import { getSecret } from "~/lib/secretStore";
 
 interface UseDiagramStreamOptions {
   username: string;
@@ -148,7 +149,7 @@ export function useDiagramStream({
         {
           username,
           repo,
-          apiKey: sessionStorage.getItem("openai_key") ?? undefined,
+          apiKey: getSecret("openai_key") ?? undefined,
           githubPat,
         },
         {

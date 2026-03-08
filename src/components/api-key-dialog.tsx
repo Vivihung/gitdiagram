@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getSecret, removeSecret } from "~/lib/secretStore";
 
 interface ApiKeyDialogProps {
   isOpen: boolean;
@@ -16,7 +17,7 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
   const [apiKey, setApiKey] = useState<string>("");
 
   useEffect(() => {
-    const storedKey = sessionStorage.getItem("openai_key");
+    const storedKey = getSecret("openai_key");
     if (storedKey) {
       setApiKey(storedKey);
     }
@@ -29,7 +30,7 @@ export function ApiKeyDialog({ isOpen, onClose, onSubmit }: ApiKeyDialogProps) {
   };
 
   const handleClear = () => {
-    sessionStorage.removeItem("openai_key");
+    removeSecret("openai_key");
     setApiKey("");
   };
 

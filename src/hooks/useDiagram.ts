@@ -10,6 +10,7 @@ import { type DiagramStreamState } from "~/features/diagram/types";
 import { useDiagramStream } from "~/hooks/diagram/useDiagramStream";
 import { useDiagramExport } from "~/hooks/diagram/useDiagramExport";
 import { isExampleRepo } from "~/lib/exampleRepos";
+import { getSecret, setSecret } from "~/lib/secretStore";
 
 export function useDiagram(username: string, repo: string) {
   const [diagram, setDiagram] = useState<string>("");
@@ -33,7 +34,7 @@ export function useDiagram(username: string, repo: string) {
       diagram: string;
       explanation: string;
     }) => {
-      const hasApiKey = !!sessionStorage.getItem("openai_key");
+      const hasApiKey = !!getSecret("openai_key");
       await cacheDiagramAndExplanation(
         username,
         repo,
@@ -79,8 +80,8 @@ export function useDiagram(username: string, repo: string) {
 
     try {
       const cached = await getCachedDiagram(username, repo);
-      const githubPat = sessionStorage.getItem("github_pat");
-      const apiKey = sessionStorage.getItem("openai_key");
+      const githubPat = getSecret("github_pat");
+      const apiKey = getSecret("openai_key");
 
       if (cached) {
         setDiagram(cached);
@@ -120,8 +121,8 @@ export function useDiagram(username: string, repo: string) {
     setError("");
     setCost("");
 
-    const githubPat = sessionStorage.getItem("github_pat");
-    const apiKey = sessionStorage.getItem("openai_key");
+    const githubPat = getSecret("github_pat");
+    const apiKey = getSecret("openai_key");
 
     try {
       const costEstimate = await getGenerationCost(
@@ -156,9 +157,9 @@ export function useDiagram(username: string, repo: string) {
     setLoading(true);
     setError("");
 
-    sessionStorage.setItem("openai_key", apiKey);
+    setSecret("openai_key", apiKey);
 
-    const githubPat = sessionStorage.getItem("github_pat");
+    const githubPat = getSecret("github_pat");
     try {
       await runGeneration(githubPat ?? undefined);
     } catch {

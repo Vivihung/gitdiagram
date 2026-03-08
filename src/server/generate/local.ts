@@ -82,8 +82,15 @@ async function findReadme(dir: string): Promise<string> {
   return "(No README found)";
 }
 
-export async function getLocalData(localPath: string): Promise<GithubData> {
+export async function getLocalData(localPath: string, allowedBasePath?: string): Promise<GithubData> {
   const resolvedPath = await realpath(resolve(localPath));
+
+  if (allowedBasePath) {
+    const resolvedBase = await realpath(resolve(allowedBasePath));
+    if (!resolvedPath.startsWith(resolvedBase)) {
+      throw new Error("Path is outside the allowed directory.");
+    }
+  }
 
   const allPaths = await walkDir(resolvedPath, resolvedPath);
   const fileTree = allPaths.join("\n");

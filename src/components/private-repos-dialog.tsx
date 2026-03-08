@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getSecret, removeSecret } from "~/lib/secretStore";
 
 interface PrivateReposDialogProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ export function PrivateReposDialog({
   const [pat, setPat] = useState<string>("");
 
   useEffect(() => {
-    const storedPat = sessionStorage.getItem("github_pat");
+    const storedPat = getSecret("github_pat");
     if (storedPat) {
       setPat(storedPat);
     }
@@ -33,7 +34,7 @@ export function PrivateReposDialog({
   };
 
   const handleClear = () => {
-    sessionStorage.removeItem("github_pat");
+    removeSecret("github_pat");
     setPat("");
   };
 

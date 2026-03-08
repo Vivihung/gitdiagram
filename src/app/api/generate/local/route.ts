@@ -32,8 +32,8 @@ function sleep(ms: number) {
 
 export async function POST(request: Request) {
   const body = (await request.json()) as { local_path?: string };
-  const localPath =
-    body.local_path ?? process.env.LOCAL_ANALYSIS_PATH;
+  const allowedBase = process.env.LOCAL_ANALYSIS_PATH;
+  const localPath = body.local_path ?? allowedBase;
 
   if (!localPath) {
     return new Response(
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
       const run = async () => {
         try {
-          const localData = await getLocalData(localPath);
+          const localData = await getLocalData(localPath, allowedBase);
           const model = getModel();
           const tokenCount = estimateTokens(
             `${localData.fileTree}\n${localData.readme}`,
