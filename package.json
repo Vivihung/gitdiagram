@@ -54,6 +54,7 @@
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "geist": "^1.7.0",
+    "jsdom": "^26.1.0",
     "ldrs": "^1.1.9",
     "lucide-react": "^0.574.0",
     "mermaid": "^11.12.3",
@@ -69,7 +70,6 @@
     "svg-pan-zoom": "^3.6.2",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
-    "jsdom": "^26.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
