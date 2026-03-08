@@ -12,8 +12,7 @@
   "files": [
     "dist/lib",
     "lib",
-    "backend/scripts/validate_mermaid.mjs",
-    "backend/node_modules"
+    "backend/scripts/validate_mermaid.mjs"
   ],
   "scripts": {
     "prepare": "npm run build:lib",
@@ -55,6 +54,7 @@
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "geist": "^1.7.0",
+    "jsdom": "^28.1.0",
     "ldrs": "^1.1.9",
     "lucide-react": "^0.574.0",
     "mermaid": "^11.12.3",
@@ -86,7 +86,6 @@
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.1.6",
     "eslint-plugin-drizzle": "^0.2.3",
-    "jsdom": "26.1.0",
     "postcss": "^8.5.6",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
