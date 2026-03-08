@@ -117,7 +117,8 @@ async def get_generation_cost(request: Request):
                     "ok": False,
                     "error": error,
                     "error_code": "VALIDATION_ERROR",
-                }
+                },
+                status_code=400,
             )
 
         github_data = _get_github_data(parsed.username, parsed.repo, parsed.github_pat)
@@ -169,7 +170,8 @@ async def get_generation_cost(request: Request):
                 "ok": False,
                 "error": "Failed to estimate generation cost.",
                 "error_code": "COST_ESTIMATION_FAILED",
-            }
+            },
+            status_code=500,
         )
 
 
