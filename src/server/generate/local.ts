@@ -1,6 +1,11 @@
 import { readdir, readFile, realpath } from "fs/promises";
-import { join, relative, resolve } from "path";
+import { join, relative, resolve, sep } from "path";
 import type { GithubData } from "./github";
+
+function isWithin(child: string, parent: string): boolean {
+  const rel = relative(parent, child);
+  return !rel.startsWith("..") && !resolve(rel).startsWith(sep);
+}
 
 const EXCLUDED_PATTERNS = [
   "node_modules/",
@@ -41,7 +46,7 @@ function shouldIncludeFile(path: string): boolean {
 
 async function walkDir(dir: string, base: string): Promise<string[]> {
   const realDir = await realpath(dir);
-  if (!realDir.startsWith(base)) {
+  if (!isWithin(realDir, base)) {
     return [];
   }
   const entries = await readdir(realDir, { withFileTypes: true });
@@ -72,7 +77,7 @@ async function findReadme(dir: string): Promise<string> {
   for (const name of candidates) {
     try {
       const candidatePath = resolve(dir, name);
-      if (!candidatePath.startsWith(dir)) continue;
+      if (!isWithin(candidatePath, dir)) continue;
       const content = await readFile(candidatePath, "utf-8");
       return content;
     } catch {

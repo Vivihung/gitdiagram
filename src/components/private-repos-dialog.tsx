@@ -52,8 +52,8 @@ export function PrivateReposDialog({
         >
           <div className="text-sm">
             To enable private repositories, you&apos;ll need to provide a GitHub
-            Personal Access Token with repo scope. The token will be stored
-            locally in your browser. Find out how{" "}
+            Personal Access Token with repo scope. The token is held in memory
+            only for this session and is never written to disk. Find out how{" "}
             <Link
               href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
               className="neo-link"
