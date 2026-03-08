@@ -1,5 +1,5 @@
-import { readdir, readFile, stat } from "fs/promises";
-import { join, relative } from "path";
+import { readdir, readFile, realpath } from "fs/promises";
+import { join, relative, resolve } from "path";
 import type { GithubData } from "./github";
 
 const EXCLUDED_PATTERNS = [
@@ -40,11 +40,15 @@ function shouldIncludeFile(path: string): boolean {
 }
 
 async function walkDir(dir: string, base: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
+  const realDir = await realpath(dir);
+  if (!realDir.startsWith(base)) {
+    return [];
+  }
+  const entries = await readdir(realDir, { withFileTypes: true });
   const paths: string[] = [];
 
   for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
+    const fullPath = join(realDir, entry.name);
     const relPath = relative(base, fullPath).replace(/\\/g, "/");
 
     if (!shouldIncludeFile(relPath + (entry.isDirectory() ? "/" : ""))) {
@@ -67,7 +71,9 @@ async function findReadme(dir: string): Promise<string> {
   const candidates = ["README.md", "readme.md", "Readme.md", "README.txt", "README", "CLAUDE.md"];
   for (const name of candidates) {
     try {
-      const content = await readFile(join(dir, name), "utf-8");
+      const candidatePath = resolve(dir, name);
+      if (!candidatePath.startsWith(dir)) continue;
+      const content = await readFile(candidatePath, "utf-8");
       return content;
     } catch {
       // try next
@@ -77,11 +83,11 @@ async function findReadme(dir: string): Promise<string> {
 }
 
 export async function getLocalData(localPath: string): Promise<GithubData> {
-  await stat(localPath); // throws if path doesn't exist
+  const resolvedPath = await realpath(resolve(localPath));
 
-  const allPaths = await walkDir(localPath, localPath);
+  const allPaths = await walkDir(resolvedPath, resolvedPath);
   const fileTree = allPaths.join("\n");
-  const readme = await findReadme(localPath);
+  const readme = await findReadme(resolvedPath);
 
   return {
     defaultBranch: "main",

@@ -148,7 +148,7 @@ export function useDiagramStream({
         {
           username,
           repo,
-          apiKey: localStorage.getItem("openai_key") ?? undefined,
+          apiKey: sessionStorage.getItem("openai_key") ?? undefined,
           githubPat,
         },
         {

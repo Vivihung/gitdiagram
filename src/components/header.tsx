@@ -28,12 +28,12 @@ export function Header() {
 
   const handlePrivateReposSubmit = (pat: string) => {
     // Store the PAT in localStorage
-    localStorage.setItem("github_pat", pat);
+    sessionStorage.setItem("github_pat", pat);
     setIsPrivateReposDialogOpen(false);
   };
 
   const handleApiKeySubmit = (apiKey: string) => {
-    localStorage.setItem("openai_key", apiKey);
+    sessionStorage.setItem("openai_key", apiKey);
     setIsApiKeyDialogOpen(false);
   };
 

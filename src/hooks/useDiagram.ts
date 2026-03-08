@@ -33,7 +33,7 @@ export function useDiagram(username: string, repo: string) {
       diagram: string;
       explanation: string;
     }) => {
-      const hasApiKey = !!localStorage.getItem("openai_key");
+      const hasApiKey = !!sessionStorage.getItem("openai_key");
       await cacheDiagramAndExplanation(
         username,
         repo,
@@ -79,8 +79,8 @@ export function useDiagram(username: string, repo: string) {
 
     try {
       const cached = await getCachedDiagram(username, repo);
-      const githubPat = localStorage.getItem("github_pat");
-      const apiKey = localStorage.getItem("openai_key");
+      const githubPat = sessionStorage.getItem("github_pat");
+      const apiKey = sessionStorage.getItem("openai_key");
 
       if (cached) {
         setDiagram(cached);
@@ -120,8 +120,8 @@ export function useDiagram(username: string, repo: string) {
     setError("");
     setCost("");
 
-    const githubPat = localStorage.getItem("github_pat");
-    const apiKey = localStorage.getItem("openai_key");
+    const githubPat = sessionStorage.getItem("github_pat");
+    const apiKey = sessionStorage.getItem("openai_key");
 
     try {
       const costEstimate = await getGenerationCost(
@@ -156,9 +156,9 @@ export function useDiagram(username: string, repo: string) {
     setLoading(true);
     setError("");
 
-    localStorage.setItem("openai_key", apiKey);
+    sessionStorage.setItem("openai_key", apiKey);
 
-    const githubPat = localStorage.getItem("github_pat");
+    const githubPat = sessionStorage.getItem("github_pat");
     try {
       await runGeneration(githubPat ?? undefined);
     } catch {

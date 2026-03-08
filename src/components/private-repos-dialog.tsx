@@ -20,7 +20,7 @@ export function PrivateReposDialog({
   const [pat, setPat] = useState<string>("");
 
   useEffect(() => {
-    const storedPat = localStorage.getItem("github_pat");
+    const storedPat = sessionStorage.getItem("github_pat");
     if (storedPat) {
       setPat(storedPat);
     }
@@ -33,7 +33,7 @@ export function PrivateReposDialog({
   };
 
   const handleClear = () => {
-    localStorage.removeItem("github_pat");
+    sessionStorage.removeItem("github_pat");
     setPat("");
   };
 
